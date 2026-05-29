@@ -1,0 +1,12 @@
+cff-version: 1.2.0
+title: "Optimal Control for Cancer Chemotherapy Using Hybrid Quantum Particle Swarm Optimization — Code"
+message: "If you use this software, please cite the paper below."
+authors:
+  - family-names: Kidane
+    given-names: Bereket Sitotaw
+  - family-names: Motayed
+    given-names: Md Samiul Haque
+  - family-names: Wang
+    given-names: Shuo
+license: MIT
+preferred-citation: "B. S. Kidane, M. S. H. Motayed and S. Wang, Optimal Control for Cancer Chemotherapy Using Hybrid Quantum Particle Swarm Optimization."

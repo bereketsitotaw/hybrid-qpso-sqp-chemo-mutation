@@ -1,0 +1,5 @@
+MATLAB R2020a or later
+Optimization Toolbox (fmincon, SQP)
+Parallel Computing Toolbox (optional, parfor in QPSO)
+
+Tested: MATLAB R2024a
