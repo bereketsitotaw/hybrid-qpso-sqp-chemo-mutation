@@ -1,6 +1,6 @@
 cff-version: 1.2.0
 title: "Optimal Control for Cancer Chemotherapy Using Hybrid Quantum Particle Swarm Optimization — Code"
-message: "If you use this software, please cite the paper below."
+message: "If you use this software, please cite the CDC 2025 paper below."
 authors:
   - family-names: Kidane
     given-names: Bereket Sitotaw
@@ -9,4 +9,29 @@ authors:
   - family-names: Wang
     given-names: Shuo
 license: MIT
-preferred-citation: "B. S. Kidane, M. S. H. Motayed and S. Wang, Optimal Control for Cancer Chemotherapy Using Hybrid Quantum Particle Swarm Optimization."
+repository-code: "https://github.com/bereketsitotaw/hybrid-qpso-sqp-chemo-mutation"
+preferred-citation:
+  type: conference-paper
+  title: "Optimal Control for Cancer Chemotherapy Using Hybrid Quantum Particle Swarm Optimization"
+  authors:
+    - family-names: Kidane
+      given-names: Bereket Sitotaw
+    - family-names: Motayed
+      given-names: Md Samiul Haque
+    - family-names: Wang
+      given-names: Shuo
+  collection-title: "2025 IEEE 64th Conference on Decision and Control (CDC)"
+  date-released: 2025-12-09
+  start-date: 2025-12-09
+  end-date: 2025-12-12
+  doi: 10.1109/CDC57313.2025.11312610
+  url: "https://doi.org/10.1109/CDC57313.2025.11312610"
+  publisher:
+    name: IEEE
+  identifiers:
+    - type: doi
+      value: 10.1109/CDC57313.2025.11312610
+    - type: isbn
+      value: "978-8-3315-2627-6"
+    - type: issn
+      value: "2576-2370"

@@ -11,7 +11,7 @@ function problem = define_chemotherapy_problem(scenario, varargin)
 %     'mutation'    - true | false (default: false for 'single', true otherwise)
 %     'phi_scale'   - scalar multiplier on phi1/phi2 (default: 1; see Fig. 4 sensitivity)
 %
-%   Paper: Optimal Control for Cancer Chemotherapy Using Hybrid QPSO
+%   Paper: IEEE CDC 2025 — doi:10.1109/CDC57313.2025.11312610
 %   Dynamics (Michaelis-Menten): Section II; numerical cases: Section V.
 %
 %   Legacy numeric IDs (define_chemo_trait_problem compatibility):
