@@ -1,27 +1,21 @@
-function main(scenario_id, varargin)
-%MAIN Hybrid QPSO-SQP chemotherapy optimal control (trait model).
+function main(arg1, arg2, varargin)
+%MAIN Hybrid QPSO-SQP chemotherapy (trait model, single/double drug).
 %
-% Usage (cd to repo root in MATLAB):
-%   main                  % all paper scenarios
-%   main('single')        % Fig. 1 — single drug, PMP benchmark
-%   main('cosine_gaussian')
-%   main('cosine_sine')
-%   main('exp_gaussian')
-%   main('double')        % all combination-therapy scenarios
-%
-%   reproduce_paper_figures('all')   % Figs. 1–6
-%   reproduce_paper_figures([5 6])  % comparison figures
-%
-%   main('cosine_gaussian', 'medication', 'single')  % force 1 control
-%
-% Paper: Optimal Control for Cancer Chemotherapy Using Hybrid QPSO
+%   main                  % all scenarios
+%   main('single')
+%   main('double')        % three combination therapies
+%   main('figures')       % Figs. 4–6 (uses cached results when present)
+%   main('figures', 5)    % one figure only
 
-    if nargin < 1 || isempty(scenario_id)
-        scenario_id = 'all';
+    root = fileparts(mfilename('fullpath'));
+    addpath(fullfile(root, 'scripts'));
+    clc; close all;
+
+    if nargin >= 1 && (ischar(arg1) || isstring(arg1)) && any(strcmpi(char(arg1), {'figures', 'fig'}))
+        if nargin < 2, which = [4, 5, 6]; else, which = arg2; end
+        chemo_pipeline(root, 'figures', which);
+    else
+        if nargin < 1, arg1 = 'all'; end
+        chemo_pipeline(root, 'run', arg1, varargin{:});
     end
-
-    clc;
-    close all;
-    init_project();
-    run_scenarios(scenario_id, varargin{:});
 end

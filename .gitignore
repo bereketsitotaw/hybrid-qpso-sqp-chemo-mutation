@@ -1,11 +1,4 @@
-# Generated locally by main.m
 results/*.mat
 results/figures/*.png
-
-# Paper PDF (keep local; do not commit if journal restricts redistribution)
-# Optimal_Control_for_Cancer_Chemotherapy_Using_Hybrid_Quantum_Particle_Swarm_Optimization.pdf
-
-# OS / MATLAB
 .DS_Store
 *.asv
-slprj/
