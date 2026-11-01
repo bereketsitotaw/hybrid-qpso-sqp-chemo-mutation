@@ -29,8 +29,9 @@ function [solution, summary] = solveOCP(problem)
         for i = 1:nu
             u_qpso(i, :) = smoothdata(u_qpso(i, :), 'gaussian', 10);
         end
-        u_qpso = max(bsxfun(@max, u_qpso, problem.bounds.u_lb), problem.bounds.u_lb);
-        u_qpso = min(bsxfun(@min, u_qpso, problem.bounds.u_ub), problem.bounds.u_ub);
+        % Clip smoothed controls to box bounds (same semantics as before).
+        u_qpso = max(u_qpso, problem.bounds.u_lb);
+        u_qpso = min(u_qpso, problem.bounds.u_ub);
         
         fprintf('   -> Re-simulating trajectory for dynamic consistency...\n');
         t_vec_qpso = linspace(0, T_qpso, N + 1);

@@ -7,12 +7,14 @@ function problem = define_chemotherapy_problem(scenario, varargin)
 %   problem = define_chemotherapy_problem('exp_gaussian')
 %
 %   Optional name-value pairs:
-%     'medication'  - 'single' | 'double' (default: inferred from scenario)
-%     'mutation'    - true | false (default: false for 'single', true otherwise)
-%     'phi_scale'   - scalar multiplier on phi1/phi2 (default: 1; see Fig. 4 sensitivity)
+%     'medication'     - 'single' | 'double' (default: inferred from scenario)
+%     'mutation'       - true | false (default: false for 'single', true otherwise)
+%     'phi_scale'      - scalar multiplier on phi1/phi2 (default: 1; see Fig. 4 sensitivity)
+%     'weight_profile' - 'paper' (default) | 'experimental' | struct of weights
 %
 %   Paper: IEEE CDC 2025 — doi:10.1109/CDC57313.2025.11312610
 %   Dynamics (Michaelis-Menten): Section II; numerical cases: Section V.
+%   Cost weights default to Section V.A: alpha=5, beta=400, gamma1=gamma2=4000.
 %
 %   Legacy numeric IDs (define_chemo_trait_problem compatibility):
 %     1 -> single,  2 -> cosine_sine,  3 -> exp_gaussian
@@ -22,6 +24,7 @@ function problem = define_chemotherapy_problem(scenario, varargin)
     p.addParameter('medication', '', @(s) isempty(s) || ismember(lower(char(s)), {'single', 'double'}));
     p.addParameter('mutation', [], @(x) isempty(x) || islogical(x));
     p.addParameter('phi_scale', 1, @(x) isnumeric(x) && isscalar(x) && x > 0);
+    p.addParameter('weight_profile', 'paper', @(x) ischar(x) || isstring(x) || isstruct(x));
     p.parse(scenario, varargin{:});
     opts = p.Results;
 
@@ -44,7 +47,7 @@ function problem = define_chemotherapy_problem(scenario, varargin)
         med = lower(char(opts.medication));
     end
 
-  switch med
+    switch med
         case 'single'
             nu = 1;
         case 'double'
@@ -92,12 +95,9 @@ function problem = define_chemotherapy_problem(scenario, varargin)
     mp.Phi12 = mp.interaction_value * mp.Phi1;
     problem.param = mp;
 
-    % --- Cost weights (Section V.A) ---
-    w.alpha_vec     = 5   * ones(m, 1);
-    w.beta_vec      = 400 * ones(m, 1);
-    w.gamma1        = 4000;
-    w.gamma2        = (nu > 1) * 4000;
-    w.lambda_smooth = 1e2;
+    % --- Cost weights (Section V.A paper defaults; see configs/) ---
+    w = resolve_cost_weights(opts.weight_profile, m, nu);
+    assert_cost_weights(w, m, nu);
     problem.weights = w;
 
     problem.model.f            = @(t, x, u, p) ch_f(t, x, u, p, nu);
@@ -134,6 +134,72 @@ function problem = define_chemotherapy_problem(scenario, varargin)
     problem.meta.mutation      = use_mutation;
     problem.meta.phi_scale     = opts.phi_scale;
     problem.meta.paper_section = spec.paper_section;
+    if isfield(w, 'profile')
+        problem.meta.weight_profile = w.profile;
+    else
+        problem.meta.weight_profile = 'custom';
+    end
+end
+
+%==========================================================================
+function w = resolve_cost_weights(profile, m, nu)
+    if isstruct(profile)
+        w = profile;
+        if ~isfield(w, 'profile'), w.profile = 'custom'; end
+        if ~isfield(w, 'source'),  w.source  = 'user struct'; end
+        return;
+    end
+    name = lower(char(profile));
+    switch name
+        case {'paper', 'cdc', 'section_va', 'default'}
+            if exist('paper_cost_weights', 'file') == 2
+                w = paper_cost_weights(m, nu);
+            else
+                w = struct();
+                w.alpha_vec     = 5   * ones(m, 1);
+                w.beta_vec      = 400 * ones(m, 1);
+                w.gamma1        = 4000;
+                w.gamma2        = (nu > 1) * 4000;
+                w.lambda_smooth = 1e2;
+                w.profile       = 'paper';
+                w.source        = 'CDC 2025 Section V.A (inline fallback)';
+            end
+        case {'experimental', 'experiment', 'local_drift'}
+            if exist('experimental_cost_weights', 'file') == 2
+                w = experimental_cost_weights(m, nu);
+            else
+                error('experimental_cost_weights not on path; addpath(''configs'').');
+            end
+            warning('define_chemotherapy_problem:NonPaperWeights', ...
+                ['Using NON-PAPER experimental cost weights (%s). ', ...
+                 'Publication reproduction requires weight_profile=''paper''.'], w.source);
+        otherwise
+            error('Unknown weight_profile "%s". Use ''paper'', ''experimental'', or a struct.', name);
+    end
+end
+
+function assert_cost_weights(w, m, nu)
+    req = {'alpha_vec', 'beta_vec', 'gamma1', 'gamma2', 'lambda_smooth'};
+    for i = 1:numel(req)
+        assert(isfield(w, req{i}), 'weights.%s missing', req{i});
+    end
+    assert(numel(w.alpha_vec) == m && numel(w.beta_vec) == m, ...
+        'alpha_vec/beta_vec must have length m=%d', m);
+    assert(all(isfinite(w.alpha_vec)) && all(w.alpha_vec > 0), 'alpha_vec must be finite and > 0');
+    assert(all(isfinite(w.beta_vec)) && all(w.beta_vec > 0), 'beta_vec must be finite and > 0');
+    assert(isfinite(w.gamma1) && w.gamma1 > 0, 'gamma1 must be finite and > 0');
+    assert(isfinite(w.lambda_smooth) && w.lambda_smooth >= 0, 'lambda_smooth must be finite and >= 0');
+    if nu > 1
+        assert(isfinite(w.gamma2) && w.gamma2 > 0, 'gamma2 must be finite and > 0 for nu>1');
+    end
+    if isfield(w, 'profile') && strcmp(w.profile, 'paper')
+        assert(abs(w.alpha_vec(1) - 5) < 1e-12, 'paper alpha must be 5');
+        assert(abs(w.beta_vec(1) - 400) < 1e-12, 'paper beta must be 400');
+        assert(abs(w.gamma1 - 4000) < 1e-12, 'paper gamma1 must be 4000');
+        if nu > 1
+            assert(abs(w.gamma2 - 4000) < 1e-12, 'paper gamma2 must be 4000');
+        end
+    end
 end
 
 %==========================================================================
@@ -317,6 +383,12 @@ function ch_summary(solution, summary, problem)
     fprintf('\n');
     fprintf('  Duration:         %.3f (fixed)\n', T);
     fprintf('  Computation:      %.2f sec\n', summary.total_time);
+    fprintf('  Weight profile:   %s (alpha=%.4g, beta=%.4g, gamma1=%.4g', ...
+        meta.weight_profile, w.alpha_vec(1), w.beta_vec(1), w.gamma1);
+    if size(U, 1) >= 2
+        fprintf(', gamma2=%.4g', w.gamma2);
+    end
+    fprintf(')\n');
     fprintf('  Lagrange cost:    %.2f (%.1f%%)\n', J_lag, 100 * J_lag / J_total);
     fprintf('  Mayer cost:       %.2f (%.1f%%)\n', J_mayer, 100 * J_mayer / J_total);
     fprintf('  Total cost:       %.2f\n', J_total);
