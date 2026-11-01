@@ -3,33 +3,51 @@ function summaries = chemo_pipeline(repo_root, action, arg, varargin)
 %
 %   chemo_pipeline(repo_root, 'run', 'all')
 %   chemo_pipeline(repo_root, 'figures', [5 6])
+%   chemo_pipeline(repo_root, 'smoke', 'single')
+
+    addpath(fullfile(repo_root, 'scripts'));
+    addpath(fullfile(repo_root, 'configs'));
 
     rng(42, 'twister');
     N_grid = 100;
 
     results_dir = fullfile(repo_root, 'results');
+    generated_dir = fullfile(results_dir, 'generated');
     figures_dir = fullfile(results_dir, 'figures');
     if ~exist(figures_dir, 'dir'), mkdir(figures_dir); end
+    if ~exist(generated_dir, 'dir'), mkdir(generated_dir); end
 
     switch lower(char(action))
         case 'run'
-            summaries = run_all(repo_root, results_dir, figures_dir, arg, N_grid, varargin{:});
+            summaries = run_all(repo_root, results_dir, generated_dir, figures_dir, ...
+                arg, N_grid, false, varargin{:});
+        case 'smoke'
+            if nargin < 3 || isempty(arg), arg = 'single'; end
+            summaries = run_all(repo_root, results_dir, generated_dir, figures_dir, ...
+                arg, N_grid, true, varargin{:});
         case 'figures'
             if nargin < 3 || isempty(arg), arg = [4, 5, 6]; end
             summaries = [];
             make_figures(repo_root, results_dir, figures_dir, arg, N_grid);
         otherwise
-            error('Unknown action "%s". Use ''run'' or ''figures''.', action);
+            error('Unknown action "%s". Use ''run'', ''smoke'', or ''figures''.', action);
     end
 end
 
 %==========================================================================
-function summaries = run_all(repo_root, results_dir, figures_dir, scenario_id, N_grid, varargin)
+function summaries = run_all(repo_root, results_dir, generated_dir, figures_dir, ...
+        scenario_id, N_grid, smoke, varargin)
     catalog = scenario_catalog();
     run_list = resolve_list(scenario_id, catalog);
 
     summaries = struct();
-    fprintf('Hybrid QPSO-SQP Chemotherapy | rng(42)\n\n');
+    if smoke
+        fprintf('Hybrid QPSO-SQP Chemotherapy | SMOKE (non-paper) | rng(42)\n\n');
+        repro = reproducibility_settings();
+    else
+        fprintf('Hybrid QPSO-SQP Chemotherapy | rng(42)\n\n');
+        repro = [];
+    end
 
     for k = 1:numel(run_list)
         tag = run_list{k};
@@ -39,28 +57,42 @@ function summaries = run_all(repo_root, results_dir, figures_dir, scenario_id, N
         problem = define_chemotherapy_problem(cfg.scenario, ...
             'medication', cfg.medication, 'mutation', cfg.mutation);
         problem.grid.N = N_grid;
+        if smoke
+            problem.grid.N = repro.smoke_grid_N;
+            problem.options.qpso.swarmSize = repro.smoke_qpso_swarm_size;
+            problem.options.qpso.maxIter = repro.smoke_qpso_max_iter;
+            problem.options.enable_pmp = repro.smoke_enable_pmp;
+            problem.options.nlp = struct('UseParallel', repro.smoke_use_parallel, ...
+                'Display', 'off', 'MaxIterations', 50, 'MaxFunctionEvaluations', 5e3);
+        end
 
         fprintf('--- %s ---\n', cfg.label);
         t0 = tic;
         [solution, summary] = solveOCP(problem);
         summary.total_time = toc(t0);
         summary.label = cfg.label;
+        summary.weight_profile = problem.meta.weight_profile;
+        summary.smoke = smoke;
 
         if isfield(problem, 'generate_summary')
             problem.generate_summary(solution, summary, problem);
         end
 
         summaries.(tag) = summary;
+        % Prefer results/generated/; also write legacy results/*.mat path for compatibility.
+        save(fullfile(generated_dir, [tag '_solution.mat']), 'solution', 'summary');
         save(fullfile(results_dir, [tag '_solution.mat']), 'solution', 'summary');
         plot_case(solution, problem, figures_dir);
     end
-    fprintf('\nDone. Results: %s\n', results_dir);
+    fprintf('\nDone. Generated: %s\n', generated_dir);
 end
 
 %==========================================================================
-function make_figures(~, results_dir, figures_dir, which, N_grid)
+function make_figures(repo_root, results_dir, figures_dir, which, N_grid)
     if ischar(which) && strcmpi(which, 'all')
-        run_all(fileparts(results_dir), results_dir, figures_dir, 'all', N_grid);
+        generated_dir = fullfile(results_dir, 'generated');
+        if ~exist(generated_dir, 'dir'), mkdir(generated_dir); end
+        run_all(repo_root, results_dir, generated_dir, figures_dir, 'all', N_grid, false);
         which = [4, 5, 6];
     end
     for f = which(:)'
