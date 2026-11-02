@@ -1,4 +1,23 @@
+# Generated solution artifacts (keep results/reference/ trackable)
 results/*.mat
+results/generated/*.mat
 results/figures/*.png
+results/figures/*.eps
+results/figures/*.fig
+!results/reference/
+!results/reference/**
+!results/generated/.gitkeep
+
+# OS / editor
 .DS_Store
+Thumbs.db
+*~
+*.swp
+
+# MATLAB
 *.asv
+*.autosave
+*.mex*
+*.slxc
+slprj/
+*.prj

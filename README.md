@@ -12,18 +12,32 @@ MATLAB code for *Optimal Control for Cancer Chemotherapy Using Hybrid Quantum Pa
 ```matlab
 cd hybrid-qpso-sqp-chemo-mutation
 main                  % all scenarios
-main('single')          % Fig. 1 — single drug
-main('double')          % three combination therapies
-main('figures')         % Figs. 4–6
-main('figures', 5)      % Fig. 5 only
+main('single')        % Fig. 1 — single drug
+main('double')        % three combination therapies
+main('figures')       % Figs. 4–6
+main('figures', 5)    % Fig. 5 only
+main('test')          % smoke tests
+main('smoke')         % tiny non-paper plumbing solve
 ```
 
-Results: `results/*.mat`, `results/figures/*.png`
+Results: `results/generated/*.mat`, `results/figures/*.png` (legacy mirror also written to `results/*.mat`).
+
+## Method (overview)
+
+Hybrid **QPSO** global search warm-starts a trapezoidal collocation NLP refined by **`fmincon` (SQP)**. Optional PMP post-processing checks Hamiltonian stationarity. Tumor trait dynamics use Michaelis–Menten cytotoxicity with optional mutation (Section II / V of the paper).
+
+## Cost weights (Section V.A)
+
+Publication defaults (do not change for paper reproduction):
+
+- α = 5, β = 400, γ₁ = 4000, γ₂ = 4000  
+
+Defined in `configs/paper_cost_weights.m`. Override only via `define_chemotherapy_problem(..., 'weight_profile', ...)`.
 
 ## Single vs double medication
 
 ```matlab
-addpath('scripts');
+addpath('scripts'); addpath('configs');
 problem = define_chemotherapy_problem('single');
 problem = define_chemotherapy_problem('cosine_gaussian');
 [solution, summary] = solveOCP(problem);
@@ -38,20 +52,28 @@ problem = define_chemotherapy_problem('cosine_gaussian');
 | `'figures', 5` | Fig. 5 |
 | `'figures', 6` | Fig. 6 |
 
-## Layout (9 MATLAB files)
+## Repository layout
 
 ```
 main.m
-scripts/
-  define_chemotherapy_problem.m   Model + scenarios
-  solveOCP.m                      Hybrid QPSO + SQP
-  ocp_*.m                         Solver core (5 files)
-  chemo_pipeline.m                Run, plot, figures
+configs/          Paper weights, reproducibility, reference metrics
+scripts/          Model + hybrid solver (lean MATLAB core)
+tests/            Smoke tests (main('test'))
+docs/             REPRODUCIBILITY.md
+results/
+  reference/      Pinned single-drug .mat + notes
+  generated/      Local solves (gitignored)
+  figures/        Generated plots (gitignored)
+.github/workflows/repo-smoke.yml
 ```
 
 ## Requirements
 
-MATLAB R2020a+, Optimization Toolbox (`fmincon`).
+MATLAB R2020a+, Optimization Toolbox (`fmincon`). Parallel Computing Toolbox optional.
+
+## Reproducing results
+
+See [docs/REPRODUCIBILITY.md](docs/REPRODUCIBILITY.md). Compare new single-drug runs to `results/reference/single_solution.mat` / `configs/reference_metrics.m`.
 
 ## Citation
 
@@ -87,6 +109,10 @@ If you use this code, please cite:
 | Electronic ISSN | 2576-2370 |
 | Print ISSN (PoD) | 0743-1546 |
 | IEEE Xplore | Added 12 January 2026 |
+
+## Contact / Issues
+
+Open issues at the GitHub repository linked in [CITATION.cff](CITATION.cff).
 
 ## License
 
